@@ -10,9 +10,29 @@ having an outage. Core Java, concurrency, and classic design patterns only: no f
 
 ```
 make test    # 16 tests, no JUnit needed
-make run     # 5-phase demo: load, outage, retransmission storm, recovery, bad input
+make run     # 5-phase console demo: load, outage, retransmission storm, recovery, bad input
+make serve   # HTTP API on :8080 for the web control room in web/
 ```
 Requires JDK 17+.
+
+## Live control room
+
+`web/index.html` is a static page (no build step) that drives the switch through the HTTP API in
+`demo/ApiServer.java`: take a bank down or slow, send 100 transactions, and watch the circuit breaker, stand-in
+approvals and advice replay happen; or send one message 64 times at once and see the issuer called once.
+
+**Run it locally:** `make serve`, then open `web/index.html` in a browser (it defaults to `http://localhost:8080`).
+
+**Deploy it:**
+1. *Backend on Render (or Railway/Fly.io):* new Web Service from this repo, runtime **Docker** (uses the root
+   `Dockerfile`; the platform sets `PORT`). The switch is stateful (breakers, advice queues), so it needs a
+   long-running process, not serverless.
+2. *Frontend on Vercel:* import the repo, set **Root Directory** to `web`, framework preset **Other**.
+3. In `web/index.html`, set `DEFAULT_API` to your Render URL and redeploy. (Visitors can also paste an API URL
+   into the page's footer field.)
+
+The API is a simulation: it takes no real card data and has open CORS so the static page can call it. Free-tier
+hosts sleep when idle, so the first load can take about 30 seconds.
 
 ## The problem it solves
 
@@ -89,7 +109,9 @@ src/main/java/com/authswitch/
   standin/      StandInProcessor (limits, advices, replay)
   observer/     TransactionListener, MetricsCollector, AuditLogger
   core/         AuthorizationSwitch (orchestration)
-  demo/         Demo
+  demo/         Demo (console scenario), ApiServer (HTTP API on the JDK's built-in server)
+web/            index.html, the static control-room page (deploy to Vercel)
+Dockerfile      multi-stage build for the API (deploy to Render, Railway, Fly.io)
 src/test/java/com/authswitch/AllTests.java
 ```
 
