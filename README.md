@@ -1,5 +1,7 @@
 # AuthSwitch
 
+**Live demo: [authswitch-web.vercel.app](https://authswitch-web.vercel.app)** (free hosting, so the first load can take up to a minute to wake the API)
+
 A small, dependency-free **payment authorization switch** in plain Java 17: it accepts ISO 8583 card
 authorization requests, routes them to the right issuer by BIN, and keeps answering when an issuer is
 slow or down, using **stand-in processing (STIP)** with later **advice replay**.
@@ -15,6 +17,20 @@ make serve   # HTTP API on :8080 for the web control room in web/
 ```
 Requires JDK 17+.
 
+## Live demo notes
+
+**[authswitch-web.vercel.app](https://authswitch-web.vercel.app)**: take a bank down, send traffic, and watch the
+circuit breaker trip, stand-in approve within limits, and advices replay when the bank recovers. The API behind it
+is on Render: [`/health`](https://authswitch-api.onrender.com/health).
+
+- **Cold starts:** the API runs on Render's free tier and sleeps when idle, so the first load can take up to a
+  minute. The page shows a "can't reach the server yet" message while it wakes.
+- **Shared and simulated:** everyone who opens the page uses the same switch, and all banks and cards are simulated.
+  Use **Reset banks** if someone left a bank down. State lives in memory (there is no database), so it resets
+  whenever the instance restarts.
+- Right after waking, a few requests to a healthy bank can exceed the 150 ms issuer timeout and be answered by
+  stand-in. That is the fallback working as designed, not a fault.
+
 ## Live control room
 
 `web/index.html` is a static page (no build step) that drives the switch through the HTTP API in
@@ -23,16 +39,16 @@ approvals and advice replay happen; or send one message 64 times at once and see
 
 **Run it locally:** `make serve`, then open `web/index.html` in a browser (it defaults to `http://localhost:8080`).
 
-**Deploy it:**
+**Deploy your own copy:**
 1. *Backend on Render (or Railway/Fly.io):* new Web Service from this repo, runtime **Docker** (uses the root
-   `Dockerfile`; the platform sets `PORT`). The switch is stateful (breakers, advice queues), so it needs a
-   long-running process, not serverless.
-2. *Frontend on Vercel:* import the repo, set **Root Directory** to `web`, framework preset **Other**.
-3. In `web/index.html`, set `DEFAULT_API` to your Render URL and redeploy. (Visitors can also paste an API URL
-   into the page's footer field.)
+   `Dockerfile`; the platform sets `PORT`), health check path `/health`. The switch is stateful (breakers, advice
+   queues), so it needs a long-running process, not serverless. No database or other services are needed.
+2. *Frontend on Vercel:* import the repo, set **Root Directory** to `web`, framework preset **Other**, and leave the
+   build settings empty.
+3. In `web/index.html`, set `DEFAULT_API` to your Render URL (no trailing slash) and redeploy. Visitors can also
+   paste an API URL into the page's footer field.
 
-The API is a simulation: it takes no real card data and has open CORS so the static page can call it. Free-tier
-hosts sleep when idle, so the first load can take about 30 seconds.
+The API is a simulation: it takes no real card data and has open CORS so the static page can call it.
 
 ## The problem it solves
 
@@ -136,6 +152,9 @@ This is a learning/portfolio project, not a certified implementation.
 - The issuer is simulated in memory; no network I/O, TLS, or HSMs.
 - Idempotency state and advice queues are in memory, so they would not survive a restart or span nodes. A
   production version would persist both (and replay advices in order).
+- Advices are replayed when an issuer's circuit breaker goes back to closed. If a few requests fall back to
+  stand-in without the breaker ever opening (for example a one-off timeout), those advices wait in the queue
+  until a later outage and recovery. A production version would also drain the queue whenever a call succeeds.
 - Stand-in limits are static; real STIP parameters come from the issuer, by BIN and merchant category.
 - Tests use a small built-in runner instead of JUnit so the project builds with only a JDK. Porting `AllTests`
   to JUnit 5 would be mechanical.
