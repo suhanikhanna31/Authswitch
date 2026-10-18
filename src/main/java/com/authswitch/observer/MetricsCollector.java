@@ -31,6 +31,21 @@ public final class MetricsCollector implements TransactionListener {
         return total.sum();
     }
 
+    public Map<String, Long> snapshot() {
+        Map<String, Long> sorted = new TreeMap<>();
+        counters.forEach((k, v) -> sorted.put(k, v.sum()));
+        return sorted;
+    }
+
+    public double avgLatencyMs() {
+        long n = total.sum();
+        return n == 0 ? 0.0 : latencySum.sum() / 1000.0 / n;
+    }
+
+    public double maxLatencyMs() {
+        return latencyMax.get() / 1000.0;
+    }
+
     public String summary() {
         StringBuilder sb = new StringBuilder();
         long n = total.sum();
