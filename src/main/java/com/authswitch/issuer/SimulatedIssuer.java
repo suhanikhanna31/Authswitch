@@ -36,6 +36,14 @@ public final class SimulatedIssuer implements Issuer {
         this.mode = mode;
     }
 
+    public Mode mode() {
+        return mode;
+    }
+
+    public void resetBalances() {
+        balances.clear();
+    }
+
     public void setSlowLatencyMs(long ms) {
         this.slowLatencyMs = ms;
     }
