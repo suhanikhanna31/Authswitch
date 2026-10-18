@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AuthSwitch: break a bank, watch the switch cope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#15202B; --muted:#5B6B7A; --line:#D5DCE3;
+  --accent:#0F5C7A; --accent-ink:#FFFFFF; --ok:#1F7A4D; --warn:#A86400; --fail:#B3261E;
+  --head:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif; --body:"Public Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0F161D;--surface:#18222C;--ink:#E7EDF2;--muted:#93A3B2;--line:#2B3947;--accent:#5CB6D6;--accent-ink:#06202B;--ok:#4CC38A;--warn:#E3A33B;--fail:#F2776F}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+main{max-width:960px;margin:0 auto;padding:32px 20px 64px}
+h1{font:700 clamp(1.8rem,4vw,2.6rem)/1.1 var(--head);margin:0 0 10px;letter-spacing:-.02em}
+h2{font:600 1.15rem/1.3 var(--head);margin:0 0 6px}
+p{margin:0 0 12px;max-width:68ch}
+.lede{color:var(--muted);font-size:1.05rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:6px;padding:18px;min-height:220px}
+.card[data-state=CLOSED]{border-left-color:var(--ok)}
+.card[data-state=HALF_OPEN]{border-left-color:var(--warn)}
+.card[data-state=OPEN]{border-left-color:var(--fail)}
+.track{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:4px 0 14px;font-size:.8rem;text-align:center}
+.track span{padding:6px 2px;color:var(--muted);transition:background .25s,color .25s}
+.card[data-state=CLOSED] .track span:nth-child(1){background:var(--ok);color:#fff;font-weight:600}
+.card[data-state=HALF_OPEN] .track span:nth-child(2){background:var(--warn);color:#fff;font-weight:600}
+.card[data-state=OPEN] .track span:nth-child(3){background:var(--fail);color:#fff;font-weight:600}
+.seg{display:flex;margin:4px 0 16px}
+.seg button{flex:1;border-radius:0;margin-left:-1px}
+.seg button:first-child{border-radius:4px 0 0 4px;margin-left:0}
+.seg button:last-child{border-radius:0 4px 4px 0}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stats{display:flex;gap:22px;flex-wrap:wrap}
+.num{font:700 1.7rem/1.1 var(--head)}
+.lab{font-size:.85rem;color:var(--muted)}
+button,select{font:500 .95rem var(--body);padding:9px 14px;border-radius:4px;cursor:pointer}
+button{border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.5;cursor:progress}
+select{border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.result{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 18px;min-height:3.4em}
+.counters{display:flex;gap:6px 22px;flex-wrap:wrap;color:var(--muted);font-size:.9rem;margin-top:10px}
+ol{padding-left:20px;max-width:68ch}li{margin-bottom:6px}
+.conn{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:.9rem;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--ok)}.dot.off{background:var(--fail)}
+input{font:.9rem var(--body);padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);min-width:240px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Break a bank. Watch the switch cope.</h1>
+  <p class="lede">AuthSwitch routes card authorizations to issuing banks. When a bank stops answering, it trips a circuit breaker, approves small purchases on the bank's behalf, and replays them when the bank returns. Everything here is simulated.</p>
+
+  <div class="grid" id="banks"></div>
+
+  <div class="bar">
+    <label>Send to <select id="bank"><option value="both">Both banks</option><option value="A">BANK_A</option><option value="B">BANK_B</option></select></label>
+    <button class="primary" id="sim">Send 100 transactions</button>
+    <button id="dup">Send one transaction 64 times at once</button>
+    <button id="reset">Reset banks</button>
+  </div>
+  <div class="result" id="result" role="status" aria-live="polite">Waiting for the server…</div>
+  <div class="counters" id="counters"></div>
+
+  <h2 style="margin-top:28px">Try this</h2>
+  <ol>
+    <li>Set BANK_A to <b>Down</b>, then send 100 transactions to BANK_A. The breaker opens after 5 failures and the rest are approved by stand-in, within limits.</li>
+    <li>Send to <b>BANK_B</b>. It keeps going, because each bank has its own breaker.</li>
+    <li>Set BANK_A back to <b>Healthy</b>. After the 5-second cool-down, send one transaction. That probe closes the breaker and the queued advices are replayed.</li>
+    <li>Use the 64-at-once button: one message sent 64 times reaches the bank once.</li>
+  </ol>
+
+  <div class="conn">
+    <span class="dot" id="dot"></span><span id="connText">Not connected</span>
+    <label>API <input id="api" aria-label="API base URL"></label>
+    <button id="save">Connect</button>
+  </div>
+</main>
+<script>
+// After deploying the backend (e.g. on Render), set this to its URL, e.g. "https://authswitch.onrender.com".
+const DEFAULT_API = "http://localhost:8080";
+let api = DEFAULT_API;
+try { api = localStorage.getItem("authswitch_api") || DEFAULT_API; } catch (e) {}
+api = api.replace(/\/+$/, "");
+
+const $ = id => document.getElementById(id);
+let busy = false, firstFailAt = null;
+$("api").value = api;
+
+async function call(method, path, timeoutMs = 60000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(api + path, { method, signal: ctl.signal });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || r.statusText);
+    return body;
+  } finally { clearTimeout(t); }
+}
+
+function el(tag, props = {}, ...kids) {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.forEach(k => n.append(k));
+  return n;
+}
+
+function stat(n, label) {
+  return el("div", {}, el("div", { className: "num", textContent: n }), el("div", { className: "lab", textContent: label }));
+}
+
+function seg(i) {
+  const wrap = el("div", { className: "seg", role: "group" });
+  wrap.setAttribute("aria-label", i.id + " status");
+  [["HEALTHY", "Healthy"], ["SLOW", "Slow"], ["DOWN", "Down"]].forEach(([m, label]) => {
+    const b = el("button", { textContent: label });
+    b.setAttribute("aria-pressed", String(i.mode === m));
+    b.onclick = () => act(async () => {
+      renderState(await call("POST", `/api/issuers/${i.id}/mode?mode=${m}`));
+      say(`${i.id} set to ${label.toLowerCase()}.`);
+    });
+    wrap.append(b);
+  });
+  return wrap;
+}
+
+function renderState(s) {
+  const host = $("banks");
+  if (!host.children.length) s.issuers.forEach(i => host.append(el("section", { className: "card", id: i.id })));
+  s.issuers.forEach(i => {
+    const card = $(i.id);
+    card.dataset.state = i.breaker;
+    card.replaceChildren(
+      el("h2", { textContent: i.id }),
+      el("div", { className: "lab", textContent: "Circuit breaker" }),
+      el("div", { className: "track" }, el("span", { textContent: "Closed" }), el("span", { textContent: "Half-open" }), el("span", { textContent: "Open" })),
+      el("div", { className: "lab", textContent: "Bank status" }),
+      seg(i),
+      el("div", { className: "stats" },
+        stat(i.pendingAdvices, "advices waiting"), stat(i.authCalls, "calls to bank"), stat(i.advicesReceived, "advices replayed")));
+    card.querySelectorAll("button").forEach(b => b.disabled = busy);
+  });
+  const c = s.counters, g = k => c[k] || 0;
+  $("counters").replaceChildren(...[
+    `${s.transactions} transactions`,
+    `${g("path.ISSUER")} answered by banks`,
+    `${g("path.STAND_IN")} answered by stand-in`,
+    `${s.duplicatesSuppressed} duplicates suppressed`,
+    `average ${s.avgLatencyMs} ms`
+  ].map(t => el("span", { textContent: t })));
+  setConn(true, "Connected");
+  if (!$("result").dataset.fresh) $("result").textContent = "Ready. Pick an action above.";
+}
+
+function say(text) { const r = $("result"); r.textContent = text; r.dataset.fresh = "1"; }
+
+function setConn(ok, text) {
+  $("dot").className = "dot " + (ok ? "on" : "off");
+  $("connText").textContent = text;
+}
+
+function lock(on) { document.querySelectorAll("button").forEach(b => b.disabled = on); }
+
+async function act(fn) {
+  if (busy) return;
+  busy = true; lock(true);
+  try { await fn(); }
+  catch (e) { say("That didn't work: " + e.message + ". Check the API address below."); setConn(false, "Error"); }
+  finally { busy = false; lock(false); }
+}
+
+async function poll() {
+  if (!busy) {
+    try { renderState(await call("GET", "/api/state", 8000)); firstFailAt = null; }
+    catch (e) {
+      firstFailAt = firstFailAt || Date.now();
+      const waited = Date.now() - firstFailAt > 3000;
+      setConn(false, waited ? "Can't reach the server yet. Free hosting can take about 30 seconds to wake up." : "Connecting…");
+    }
+  }
+  setTimeout(poll, 1000);
+}
+
+$("sim").onclick = () => act(async () => {
+  const r = await call("POST", `/api/simulate?bank=${$("bank").value}&count=100`);
+  say(`Sent ${r.sent}: ${r.approvedByIssuer} approved by the bank, ${r.approvedByStandIn} approved by stand-in, ` +
+      `${r.declinedInsufficientFunds} declined for funds, ${r.declinedIssuerUnavailable} declined because the bank was unavailable.`);
+  renderState(await call("GET", "/api/state"));
+});
+$("dup").onclick = () => act(async () => {
+  const bank = $("bank").value === "A" ? "A" : "B";
+  const r = await call("POST", `/api/duplicates?bank=${bank}`);
+  say(`Sent the same message ${r.sent} times at once. The bank was called ${r.issuerCalls} time(s), ${r.duplicatesSuppressed} duplicates were suppressed, all answers identical: ${r.identicalAnswers ? "yes" : "no"}.`);
+  renderState(await call("GET", "/api/state"));
+});
+$("reset").onclick = () => act(async () => {
+  renderState(await call("POST", "/api/reset"));
+  say("Both banks set to healthy and balances restored.");
+});
+$("save").onclick = () => {
+  api = $("api").value.trim().replace(/\/+$/, "");
+  try { localStorage.setItem("authswitch_api", api); } catch (e) {}
+  $("banks").replaceChildren(); firstFailAt = null; setConn(false, "Connecting…");
+};
+poll();
+</script>
+</body>
+</html>
