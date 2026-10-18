@@ -90,8 +90,9 @@ input{font:.9rem var(--body);padding:7px 10px;border:1px solid var(--line);borde
   </div>
 </main>
 <script>
-// After deploying the backend (e.g. on Render), set this to its URL, e.g. "https://authswitch.onrender.com".
-const DEFAULT_API = "http://localhost:8080";
+// IMPORTANT: set this to your Render service URL (no trailing slash) before deploying to Vercel.
+// Use "http://localhost:8080" when running the API locally with `make serve`.
+const DEFAULT_API = "https://authswitch-api.onrender.com";
 let api = DEFAULT_API;
 try { api = localStorage.getItem("authswitch_api") || DEFAULT_API; } catch (e) {}
 api = api.replace(/\/+$/, "");
