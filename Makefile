@@ -1,7 +1,7 @@
 SRC := $(shell find src/main -name '*.java')
 TST := $(shell find src/test -name '*.java')
 
-.PHONY: build test run clean
+.PHONY: build test run clean serve
 
 build:
 	@mkdir -p out && javac --release 17 -Xlint:all -d out $(SRC)
@@ -14,3 +14,6 @@ run: build
 
 clean:
 	rm -rf out out-test
+
+serve: build
+	java -cp out com.authswitch.demo.ApiServer
