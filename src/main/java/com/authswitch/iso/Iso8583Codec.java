@@ -95,3 +95,4 @@ public final class Iso8583Codec {
         }
     }
 }
+ 
