@@ -13,3 +13,4 @@ public interface Issuer {
     /** Advice (MTI 0120): tells the issuer about a transaction approved on its behalf while it was down. */
     void advise(AuthRequest request, String standInAuthId) throws IssuerException;
 }
+ 
